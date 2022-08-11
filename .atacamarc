@@ -1,0 +1,7 @@
+- exclude:
+  - node_modules/**
+  - build/**
+- size: 100
+- files: "**/*.*"
+- lines: 4
+- threshold: 95

@@ -1,0 +1,35 @@
+{
+  "dependencies": {
+    "cosmiconfig": "^7.0.1",
+    "envtrace": "^0.0.2",
+    "fast-glob": "^3.2.11",
+    "fluture": "^14.0.0",
+    "kleur": "^4.1.5",
+    "ramda": "^0.28.0",
+    "yargs-parser": "^21.1.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.18.10",
+    "@babel/preset-env": "^7.18.10",
+    "babel-jest": "^28.1.3",
+    "dependency-cruiser": "^11.14.1",
+    "esbuild": "^0.15.1",
+    "eslint": "^8.21.0",
+    "eslint-config-sorcerers": "^0.0.7",
+    "execa": "^6.1.0",
+    "jest": "^28.1.3",
+    "nps": "^5.10.0",
+    "nps-utils": "^1.7.0",
+    "prettier": "^2.7.1",
+    "prettier-eslint": "^15.0.1",
+    "ripjam": "^0.0.11"
+  },
+  "name": "atacama",
+  "version": "0.0.0",
+  "description": "find repeated code",
+  "main": "atacama.js",
+  "repository": "https://github.com/brekk/atacama",
+  "author": "brekk",
+  "license": "ISC",
+  "private": false
+}
