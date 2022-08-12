@@ -9,4 +9,4 @@ import { curry, pipe, slice } from 'ramda'
 
 import { config } from './config'
 
-pipe(config, fork(console.warn)(console.log))()
+pipe(config, chain(pipe()), fork(console.warn)(console.log))()
