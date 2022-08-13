@@ -16,6 +16,10 @@ module.exports = {
         description: `re-run tests anytime source files change`,
       },
     },
+    lint: {
+      description: `lint the source`,
+      script: `eslint --fix src/.`,
+    },
     build: {
       description: `build the project`,
       esm: {
