@@ -24,11 +24,11 @@
     "prettier-eslint": "^15.0.1",
     "ripjam": "^0.0.11"
   },
-  "name": "atacama",
+  "name": "raincoat",
   "version": "0.0.0",
   "description": "find repeated code",
-  "main": "atacama.js",
-  "repository": "https://github.com/brekk/atacama",
+  "main": "raincoat.js",
+  "repository": "https://github.com/brekk/raincoat",
   "author": "brekk",
   "license": "ISC",
   "private": false

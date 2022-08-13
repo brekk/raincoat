@@ -1,10 +1,11 @@
+import pkg from '../package.json'
+
 import { pipe } from 'ramda'
 import { fork } from 'fluture'
 
 import { getRawConfig } from './config'
-import pkg from '../package.json'
 
-test('loads the default `.atacamarc` file', done => {
+test(`loads the default '.${pkg.name}rc' file`, done => {
   pipe(
     getRawConfig,
     fork(done)(raw => {

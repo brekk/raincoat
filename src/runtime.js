@@ -1,7 +1,7 @@
 import { curryN, __ as $ } from 'ramda'
 import rawParser from 'yargs-parser'
 
-// .atacamarc
+// .raincoatrc
 //
 // - exclude:
 //   - node_modules/**
