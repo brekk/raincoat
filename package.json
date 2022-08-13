@@ -22,6 +22,7 @@
     "nps-utils": "^1.7.0",
     "prettier": "^2.7.1",
     "prettier-eslint": "^15.0.1",
+    "quizzically": "^0.0.1",
     "ripjam": "^0.0.11"
   },
   "name": "raincoat",

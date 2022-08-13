@@ -3,11 +3,11 @@ import pkg from '../package.json'
 import { pipe } from 'ramda'
 import { fork } from 'fluture'
 
-import { getRawConfig } from './config'
+import { config } from './config'
 
 test(`loads the default '.${pkg.name}rc' file`, done => {
   pipe(
-    getRawConfig,
+    config,
     fork(done)(raw => {
       expect(raw).toEqual({
         exclude: ['node_modules/**', 'build/**'],
