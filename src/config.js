@@ -1,10 +1,8 @@
+import kleur from 'kleur'
 import {
   __ as $,
   append,
-  ap,
   curry,
-  map,
-  chain,
   curryN,
   defaultTo,
   either,
@@ -14,8 +12,8 @@ import {
   head,
   includes,
   last,
+  map,
   mergeRight,
-  of,
   pipe,
   propOr,
   reduce,
@@ -27,7 +25,10 @@ import { cosmiconfig } from 'cosmiconfig'
 import { Future } from 'fluture'
 
 import pkg from '../package.json'
-import etrace from './trace'
+import { detail as __detail, info as __info } from './trace'
+import { yargsConfig, ASCII_TEXT, HELP_TEXT, HELP_STRINGS } from './constants'
+
+const getHelpString = long => propOr('????', long, HELP_STRINGS)
 
 /* Config = {
  *   exclude   :: List String,
@@ -43,7 +44,6 @@ export const config = () =>
   pipe(
     // grab config based on package name
     cosmiconfig,
-    etrace.info('config'),
     x =>
       // we're creating a Future here to model asynchrony
       new Future((bad, good) => {
@@ -54,7 +54,7 @@ export const config = () =>
           // handle the good
           .then(
             pipe(
-              etrace.detail('raw config'),
+              __detail('raw config'),
               // grab config
               propOr([], 'config'),
               // config is a list of single {key: value}s
@@ -69,42 +69,28 @@ export const config = () =>
       })
   )(pkg.name)
 
-// .raincoatrc
-//
-// - exclude:
-//   - node_modules/**
-//   - build/**
-// - size: 100
-// - files: "**/*.*"
-// - lines: 4
-// - threshold: 95
-
-export const yargsConfig = {
-  alias: {
-    exclude: ['x'],
-    size: ['s'],
-    files: ['i'],
-    lines: ['l'],
-    threshold: ['t'],
-  },
-  array: ['x'],
-  number: ['s', 'l', 't'],
-}
-
 // wrap raw yargs-parser with curry
 export const argsParser = curryN(2, rawParser)
 
 // partially apply for default case
 export const parse = argsParser($, yargsConfig)
 
+// get a structured [preferred, alias] list from a given yargsConfig
+// getAliasPairs :: YargsConfig -> List #[String, String]
 export const getAliasPairs = pipe(
+  // grab alias or {}
   propOr({}, 'alias'),
+  // conver to pairs
   toPairs,
+  // since the short flags are array-wrapped, flatten that for ease of consumption
   map(([k, [v]]) => [k, v])
 )
 
+// get just the short flags
+// getShortAliases :: YargsConfig -> List String
 export const getShortAliases = pipe(getAliasPairs, map(last))
 
+// getFullAlias :: YargsConfig -> String -> [String, [String]]
 export const getFullAlias = curry((yc, k) =>
   pipe(
     getAliasPairs,
@@ -115,10 +101,42 @@ export const getFullAlias = curry((yc, k) =>
   )(yc)
 )
 
+// getAlias :: YargsConfig -> String -> String
 export const getAlias = curry((yc, k) => pipe(getFullAlias(yc), head)(k))
 
+// stripShortAliases :: YargsConfig -> Config -> Config
 export const stripShortAliases = curry((yc, raw) => {
-  return pipe(getShortAliases, append('_'), etrace.info('aliases'), a =>
-    pipe(toPairs, reject(pipe(head, includes($, a))), fromPairs)(raw)
+  return pipe(
+    // get all the short flags
+    getShortAliases,
+    // add the floating _ key
+    append('_'),
+    __info('aliases'),
+    aliases =>
+      pipe(
+        // obj -> [[k, v]]
+        toPairs,
+        // skip where v is a known short flag
+        reject(pipe(head, includes($, aliases))),
+        // make consumable downstream
+        fromPairs
+      )(raw)
   )(yc)
 })
+
+const colorize = curry((style, color, str) => (color ? style(str) : str))
+
+const red = colorize(kleur.red)
+const yellow = colorize(kleur.yellow)
+const cyan = colorize(kleur.cyan)
+
+export const generateHelpFlags = curry((yc, color) =>
+  pipe(
+    getAliasPairs,
+    map(
+      ([l, s]) => `-${red(color, s)} / --${red(color, l)} - ${getHelpString(l)}`
+    ),
+    flags =>
+      yellow(color, ASCII_TEXT) + '\n' + HELP_TEXT + '\n' + flags.join('\n')
+  )(yc)
+)

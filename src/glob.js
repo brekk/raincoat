@@ -2,7 +2,7 @@ import F from 'fluture'
 import fg from 'fast-glob'
 import { curryN } from 'ramda'
 
-export const readDirWithConfig = curryN(
+export const findGlobWithConfig = curryN(
   2,
   (conf, glob) =>
     new F((bad, good) => {
@@ -10,4 +10,4 @@ export const readDirWithConfig = curryN(
       return () => {}
     })
 )
-export const readDir = readDirWithConfig({})
+export const findGlob = findGlobWithConfig({})
