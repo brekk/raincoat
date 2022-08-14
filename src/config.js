@@ -1,18 +1,25 @@
 import {
   __ as $,
+  append,
+  ap,
   curry,
+  map,
+  chain,
   curryN,
   defaultTo,
   either,
   equals,
   find,
+  fromPairs,
   head,
   includes,
   last,
   mergeRight,
+  of,
   pipe,
   propOr,
   reduce,
+  reject,
   toPairs,
 } from 'ramda'
 import rawParser from 'yargs-parser'
@@ -23,7 +30,7 @@ import pkg from '../package.json'
 import etrace from './trace'
 
 /* Config = {
- *   exclude   :: List String
+ *   exclude   :: List String,
  *   size      :: Integer
  *   files     :: String
  *   lines     :: Integer
@@ -47,7 +54,7 @@ export const config = () =>
           // handle the good
           .then(
             pipe(
-              etrace.debug('raw config'),
+              etrace.detail('raw config'),
               // grab config
               propOr([], 'config'),
               // config is a list of single {key: value}s
@@ -90,12 +97,28 @@ export const argsParser = curryN(2, rawParser)
 // partially apply for default case
 export const parse = argsParser($, yargsConfig)
 
-export const getAlias = curry((yc, k) =>
+export const getAliasPairs = pipe(
+  propOr({}, 'alias'),
+  toPairs,
+  map(([k, [v]]) => [k, v])
+)
+
+export const getShortAliases = pipe(getAliasPairs, map(last))
+
+export const getFullAlias = curry((yc, k) =>
   pipe(
-    propOr({}, 'alias'),
-    toPairs,
+    getAliasPairs,
+    // look for k in [k, [k]]
     find(either(pipe(head, equals(k)), pipe(last, includes(k)))),
-    defaultTo([k]),
-    head
+    // find can fail, so provide a default
+    defaultTo([k])
   )(yc)
 )
+
+export const getAlias = curry((yc, k) => pipe(getFullAlias(yc), head)(k))
+
+export const stripShortAliases = curry((yc, raw) => {
+  return pipe(getShortAliases, append('_'), etrace.info('aliases'), a =>
+    pipe(toPairs, reject(pipe(head, includes($, a))), fromPairs)(raw)
+  )(yc)
+})

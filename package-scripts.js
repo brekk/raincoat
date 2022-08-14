@@ -3,6 +3,7 @@ const pkg = require('./package.json')
 const { name: pkgName } = pkg
 
 const esbuild = (outfile, format = '') =>
+  // eslint-disable-next-line max-len
   `esbuild src/index.js --bundle --outfile=${outfile} --platform=node ${format} --banner:js="#!/usr/bin/env node"`
 
 module.exports = {
