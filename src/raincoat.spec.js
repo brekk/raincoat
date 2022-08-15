@@ -1,4 +1,4 @@
-import { runTest, expectToBe } from 'quizzically'
+import { runTest } from 'quizzically'
 import { curryN, prop, identity as I } from 'ramda'
 
 // import itrace from './trace'

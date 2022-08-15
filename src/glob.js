@@ -2,12 +2,12 @@ import F from 'fluture'
 import fg from 'fast-glob'
 import { curryN } from 'ramda'
 
-export const findGlobWithConfig = curryN(
+export const globWithConfig = curryN(
   2,
-  (conf, glob) =>
+  (conf, g) =>
     new F((bad, good) => {
-      fg(glob, conf).catch(bad).then(good)
+      fg(g, conf).catch(bad).then(good)
       return () => {}
     })
 )
-export const findGlob = findGlobWithConfig({})
+export const glob = globWithConfig({})

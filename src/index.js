@@ -5,16 +5,28 @@ import path from 'node:path'
 import glob from 'fast-glob'
 import { fork } from 'fluture'
 import kleur from 'kleur'
-import { pipe } from 'ramda'
+import { when, is, pipe } from 'ramda'
 
 import { cli } from './cli'
 pipe(
   fork(
     // cant' go tacit with .write
-    x => process.stderr.write(x)
+    pipe(
+      when(
+        e => e instanceof Error,
+        x => x.toString()
+      ),
+      x => {
+        process.stderr.write(x)
+        process.exit(1)
+      }
+    )
   )(
     // same
     // x => process.stdout.write(JSON.stringify(x))
-    x => process.stdout.write(x)
+    x => {
+      process.stdout.write(x)
+      process.exit(0)
+    }
   )
 )(cli(process.argv))

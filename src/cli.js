@@ -1,4 +1,5 @@
 import {
+  ifElse,
   always as K,
   cond,
   concat,
@@ -6,9 +7,15 @@ import {
   mergeRight,
   pipe,
   reduce,
+  prop,
+  propOr,
   slice,
+  length,
+  lt,
   toPairs,
+  chain,
 } from 'ramda'
+import { resolve, parallel, reject } from 'fluture'
 
 import {
   config,
@@ -17,8 +24,12 @@ import {
   generateHelpFlags,
   getAlias,
 } from './config'
-import { detail as __detail } from './trace'
 import { yargsConfig } from './constants'
+import { detail as __detail } from './trace'
+import { glob } from './glob'
+import { red } from './color'
+
+import { verifyConfig } from './config-yargs'
 
 export const getInferredConfig = pipe(
   // process.argv.slice(2)
@@ -53,16 +64,58 @@ export const getInferredConfig = pipe(
       )(cliConf)
     )(config())
 )
+const hasFiles = pipe(propOr([], 'files'), length, lt(0))
+
+const processFiles = conf =>
+  pipe(
+    prop('files'),
+    map(glob),
+    __detail('globbed?'),
+    parallel(50),
+    map(__detail('data'))
+  )(conf)
 
 // cli :: Config -> Future Error String
-export const cli = pipe(
-  // figure out the inferred config
-  getInferredConfig,
-  // based on what that is, do stuff
-  map(conf =>
-    cond([
-      // in every other case, render help text
-      [K(true), c => generateHelpFlags(yargsConfig, c.color)],
-    ])(conf)
-  )
-)
+export const cli = conf => {
+  const verify = verifyConfig(yargsConfig)
+  return pipe(
+    // figure out the inferred config
+    getInferredConfig,
+    // based on what that is, do stuff
+    // we chain because we want to be able to fail out
+    chain(cc =>
+      ifElse(
+        // verify that the check has no matched keys
+        pipe(verify, length, lt(0)),
+        // if so
+        pipe(
+          verify,
+          // convert the unmatched keys to an error
+          k =>
+            new Error(
+              `Unable to understand usage of the ${k
+                .map(l => `"${red(cc.color, l)}"`)
+                .join(', ')} flag${k.length > 1 ? 's' : ''}`
+            ),
+          // and reject / "throw" in future terms
+          reject
+        ),
+        // if verify passed
+        pipe(
+          // check the utility of cond!
+          // it takes [[whenX, doX]] functions
+          // where whenX is a unary predicate
+          // and doX is a unary transformer
+          cond([
+            // if we have some files, process them
+            [hasFiles, processFiles],
+            // in every other case, render help text
+            [K(true), c => generateHelpFlags(yargsConfig, c.color)],
+          ]),
+          resolve
+        )
+      )(cc)
+    ),
+    map(__detail('HUHHHH'))
+  )(conf)
+}
