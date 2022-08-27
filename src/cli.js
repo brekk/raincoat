@@ -26,6 +26,7 @@ import { globWithConfig } from './glob'
 import { generateHelpFlags } from './help'
 import { readFile } from './read'
 import { detail as __detail } from './trace'
+import { generateComparisons } from './hash'
 
 import {
   getAlias,
@@ -69,34 +70,35 @@ export const getInferredConfig = pipe(
 )
 const hasFiles = pipe(propOr([], 'files'), length, lt(0))
 
-const processFiles = conf =>
-  pipe(
-    // always `of` before you `ap`
-    of,
-    // grab `files` & `exclude` & `parallelFiles`
-    ap([
-      propOr('**/*', 'files'),
-      propOr(['node_modules/**'], 'exclude'),
-      propOr(10, 'parallelFiles'),
-    ]),
-    // destructure and rename
-    ([files, ignore, parallelFiles]) =>
-      pipe(
-        // pass files to glob, but ignore some
-        globWithConfig({ ignore }),
-        // we need to chain because glob returns a Future
-        chain(fx =>
-          pipe(
-            // read the files: [Future, Future, ...]
-            map(readFile),
-            // mash [Future, Future, ...] => Future
-            parallel(parallelFiles),
-            // zip the original file list back into the read files
-            map(zip(fx))
-          )(fx)
-        )
-      )(files)
-  )(conf)
+const getFileContents = pipe(
+  // always `of` before you `ap`
+  of,
+  // grab `files` & `exclude` & `parallelFiles`
+  ap([
+    propOr('**/*', 'files'),
+    propOr(['node_modules/**'], 'exclude'),
+    propOr(10, 'parallelFiles'),
+  ]),
+  // destructure and rename
+  ([files, ignore, parallelFiles]) =>
+    pipe(
+      // pass files to glob, but ignore some
+      globWithConfig({ ignore }),
+      // we need to chain because glob returns a Future
+      chain(fx =>
+        pipe(
+          // read the files: [Future, Future, ...]
+          map(readFile),
+          // mash [Future, Future, ...] => Future
+          parallel(parallelFiles),
+          // zip the original file list back into the read files
+          map(zip(fx))
+        )(fx)
+      )
+    )(files)
+)
+
+const processFiles = pipe(getFileContents, generateComparisons)
 
 // cli :: Config -> Future Error String
 export const cli = conf => {

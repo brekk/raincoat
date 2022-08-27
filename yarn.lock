@@ -1809,6 +1809,13 @@ caniuse-lite@^1.0.30001370:
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001375.tgz#8e73bc3d1a4c800beb39f3163bf0190d7e5d7672"
   integrity sha512-kWIMkNzLYxSvnjy0hL8w1NOaWNr2rn39RTAVyIwcw8juu60bZDWiF1/loOYANzjtJmy6qPgNmn38ro5Pygagdw==
 
+cartographic@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/cartographic/-/cartographic-0.0.2.tgz#ac194597c8a95607112721013d7c721c0d7f0af7"
+  integrity sha512-vDpfh89chjbYj/3F/Rk+pNpoQ0YRR4v4Cf6R3dpt3fpRTTRSLbDGzpwMYuBrZRqPXF4xWr4ev++SkcijjJc3KQ==
+  dependencies:
+    ramda "^0.28.0"
+
 chalk@^1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-1.1.3.tgz#a8115c55e4a702fe4d150abd3872822a7e09fc98"
@@ -5681,6 +5688,14 @@ unicode-property-aliases-ecmascript@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/unicode-property-aliases-ecmascript/-/unicode-property-aliases-ecmascript-2.0.0.tgz#0a36cb9a585c4f6abd51ad1deddb285c165297c8"
   integrity sha512-5Zfuy9q/DFr4tfO7ZPeVXb1aPoeQSdeFMLpYuFebehDAhbuevLs5yxSZmIFN1tP5F9Wl4IpJrYojg85/zgyZHQ==
+
+unusual@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/unusual/-/unusual-0.0.2.tgz#a33f26f040895b4db0238f58b4bf64bb4ab7efa6"
+  integrity sha512-StncerfINcG0v5zKqc0546e0GjQCbQK7k7BEMZKBkGh3/4dLz7anrf+fX+7MZLZ/txXSxQgKYE7nBQjlbkLBfw==
+  dependencies:
+    envtrace "^0.0.2"
+    katsu-curry "^0.7.8"
 
 update-browserslist-db@^1.0.5:
   version "1.0.5"

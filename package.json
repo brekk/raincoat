@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cartographic": "^0.0.2",
     "cosmiconfig": "^7.0.1",
     "envtrace": "^0.0.2",
     "fast-glob": "^3.2.11",
@@ -24,7 +25,9 @@
     "prettier": "^2.7.1",
     "prettier-eslint": "^15.0.1",
     "quizzically": "^0.0.1",
-    "ripjam": "^0.0.11"
+    "ripjam": "^0.0.11",
+    "unusual": "^0.0.2",
+    "xtrace": "^0.3.0"
   },
   "name": "raincoat",
   "version": "0.0.0",
