@@ -1,32 +1,9 @@
-import kleur from 'kleur'
-import {
-  __ as $,
-  append,
-  curry,
-  curryN,
-  defaultTo,
-  either,
-  equals,
-  find,
-  fromPairs,
-  head,
-  includes,
-  last,
-  map,
-  mergeRight,
-  pipe,
-  propOr,
-  reduce,
-  reject,
-  toPairs,
-} from 'ramda'
-import rawParser from 'yargs-parser'
+import { mergeRight, pipe, propOr, reduce } from 'ramda'
 import { cosmiconfig } from 'cosmiconfig'
 import { Future } from 'fluture'
 
 import pkg from '../package.json'
 import { detail as __detail, info as __info } from './trace'
-import { yargsConfig, ASCII_TEXT, HELP_TEXT, HELP_STRINGS } from './constants'
 
 /* Config = {
  *   exclude   :: List String,
@@ -36,7 +13,6 @@ import { yargsConfig, ASCII_TEXT, HELP_TEXT, HELP_STRINGS } from './constants'
  *   threshold :: Float
  * }
  */
-
 
 // config :: () -> Config
 export const config = () =>
@@ -67,9 +43,3 @@ export const config = () =>
         return () => {}
       })
   )(pkg.name)
-
-// wrap raw yargs-parser with curry
-export const argsParser = curryN(2, rawParser)
-
-// partially apply for default case
-export const parse = argsParser($, yargsConfig)

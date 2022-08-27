@@ -30,23 +30,27 @@ export const HELP_STRINGS = {
   size: 'The number of characters to inspect',
   lines: 'The number of lines to inspect',
   threshold: 'Coverage threshold as a %',
+  parallelFiles: 'Number of files to read at a time (default: 10)',
+  debug: 'Enable debug logging. Equivalent to `DEBUG="raincoat:*" raincoat`',
 }
 
 export const yargsConfig = {
   alias: {
+    color: ['c'],
+    debug: ['d'],
+    exclude: ['x'],
+    files: ['i'],
     help: ['h'],
     init: ['n'],
-    color: ['c'],
-    files: ['i'],
-    exclude: ['x'],
     lines: ['l'],
+    parallelFiles: ['p'],
     size: ['s'],
     threshold: ['t'],
   },
   default: { color: true },
   array: ['x'],
-  number: ['s', 'l', 't'],
-  boolean: ['h', 'c', 'n'],
+  number: ['s', 'l', 't', 'p'],
+  boolean: ['h', 'c', 'n', 'd'],
 }
 
 export const ASCII_TEXT = `               _                        __

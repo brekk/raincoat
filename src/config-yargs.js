@@ -1,7 +1,7 @@
 import {
   __ as $,
   append,
-  chain,
+  curryN,
   concat,
   reduce,
   curry,
@@ -19,8 +19,10 @@ import {
   reject,
   toPairs,
 } from 'ramda'
+import rawParser from 'yargs-parser'
 
 import { info as __info } from './trace'
+import { yargsConfig } from './constants'
 
 // get a structured [preferred, alias] list from a given yargsConfig
 // getAliasPairs :: YargsConfig -> List #[String, String]
@@ -84,3 +86,9 @@ export const verifyConfig = curry((yc, conf) =>
       )(conf)
   )(yc)
 )
+
+// wrap raw yargs-parser with curry
+export const argsParser = curryN(2, rawParser)
+
+// partially apply for default case
+export const parse = argsParser($, yargsConfig)

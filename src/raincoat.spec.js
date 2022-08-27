@@ -33,7 +33,7 @@ describe('raincoat cli', () => {
     runWithArgs(
       [],
       j({
-        exclude: ['node_modules/**', 'build/**'],
+        exclude: ['node_modules/**', 'build/**', 'coverage/**'],
         size: 100,
         files: '**/*.*',
         lines: 4,

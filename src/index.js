@@ -25,7 +25,8 @@ pipe(
     // same
     // x => process.stdout.write(JSON.stringify(x))
     x => {
-      process.stdout.write(x)
+      console.log(x)
+      // process.stdout.write(x)
       process.exit(0)
     }
   )

@@ -1,35 +1,38 @@
 import {
-  ifElse,
   always as K,
-  cond,
+  ap,
+  chain,
   concat,
-  map,
-  mergeRight,
-  pipe,
-  reduce,
-  prop,
-  propOr,
-  slice,
+  cond,
+  ifElse,
   length,
   lt,
+  map,
+  mergeRight,
+  of,
+  pipe,
+  propOr,
+  reduce,
+  slice,
   toPairs,
-  chain,
+  zip,
 } from 'ramda'
 import { resolve, parallel, reject } from 'fluture'
 
-import {
-  config,
-  parse,
-  stripShortAliases,
-  generateHelpFlags,
-  getAlias,
-} from './config'
-import { yargsConfig } from './constants'
-import { detail as __detail } from './trace'
-import { glob } from './glob'
 import { red } from './color'
+import { config } from './config'
+import { yargsConfig } from './constants'
+import { globWithConfig } from './glob'
+import { generateHelpFlags } from './help'
+import { readFile } from './read'
+import { detail as __detail } from './trace'
 
-import { verifyConfig } from './config-yargs'
+import {
+  getAlias,
+  stripShortAliases,
+  parse,
+  verifyConfig,
+} from './config-yargs'
 
 export const getInferredConfig = pipe(
   // process.argv.slice(2)
@@ -68,11 +71,31 @@ const hasFiles = pipe(propOr([], 'files'), length, lt(0))
 
 const processFiles = conf =>
   pipe(
-    prop('files'),
-    map(glob),
-    __detail('globbed?'),
-    parallel(50),
-    map(__detail('data'))
+    // always `of` before you `ap`
+    of,
+    // grab `files` & `exclude` & `parallelFiles`
+    ap([
+      propOr('**/*', 'files'),
+      propOr(['node_modules/**'], 'exclude'),
+      propOr(10, 'parallelFiles'),
+    ]),
+    // destructure and rename
+    ([files, ignore, parallelFiles]) =>
+      pipe(
+        // pass files to glob, but ignore some
+        globWithConfig({ ignore }),
+        // we need to chain because glob returns a Future
+        chain(fx =>
+          pipe(
+            // read the files: [Future, Future, ...]
+            map(readFile),
+            // mash [Future, Future, ...] => Future
+            parallel(parallelFiles),
+            // zip the original file list back into the read files
+            map(zip(fx))
+          )(fx)
+        )
+      )(files)
   )(conf)
 
 // cli :: Config -> Future Error String
@@ -110,12 +133,10 @@ export const cli = conf => {
             // if we have some files, process them
             [hasFiles, processFiles],
             // in every other case, render help text
-            [K(true), c => generateHelpFlags(yargsConfig, c.color)],
-          ]),
-          resolve
+            [K(true), c => resolve(generateHelpFlags(yargsConfig, c.color))],
+          ])
         )
       )(cc)
-    ),
-    map(__detail('HUHHHH'))
+    )
   )(conf)
 }
