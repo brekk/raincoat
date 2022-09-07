@@ -67,3 +67,6 @@ Use raincoat to find repeated content.
 Try using \`raincoat --init\`!
 
 Options:`
+
+export const INTER_FILE_DUPLICATE = `__IFD__`
+export const IDENTICAL_FILE = `__IF__`
