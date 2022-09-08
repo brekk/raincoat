@@ -5,6 +5,7 @@ import {
   addIndex,
   adjust,
   concat,
+  complement,
   curry,
   curryN,
   forEach,
@@ -37,6 +38,7 @@ import {
   of as makeMap,
   has as mapHas,
 } from 'cartographic'
+import isBinaryPath from 'is-binary-path'
 
 import { makeMessage } from './message'
 import { info as __info, debug as __debug } from './trace'
@@ -166,78 +168,98 @@ const insertMatch = curry((messages, docs, filePath, docHash, fullDocHashes) =>
   )(docHash)
 )
 
-const doMoreComplicatedStuff = () => {
-  const blocks = makeBlockArray(doc.content)
-  const minifiedBlocks = minifyBlocks(blocks)
-  // We iterate over the current document's minified blocks
-  minifiedBlocks.map(block => {
-    if (!meetsSizeCriteria(block, config.minLines - 1, config.minChars)) {
-      console.log('continue')
-      return
-    }
-    // First we must check if this block is even worth checking, as we have config params which set some criteria for the content size
-    const blockHash = hashString(minifiedBlocks[b])
-    const blockMatched = allBlockHashes.has(blockHash)
-    const currentDocInd = fullDocHashes.get(docHash).docInd
-    if (!blockMatched) {
-      allBlockHashes.set(blockHash, { docIndexes: [currentDocInd] })
-    } else {
-      const block = blocks[b]
-      state.dupedLines += numLines(block)
-      state.numBlockDupes++
+const deepComparison = curry(
+  (minifiedBlock, allBlockHashes, fullDocHashes, docHash) => {
+    return pipe(hashString, blockHash =>
+      ifElse(
+        complement(mapHas)($, allBlockHashes),
+        pipe(
+          () => mapGet(docHash, fullDocHashes),
+          propOr(-1, 'docInd'),
+          of,
+          objOf('docIndexes'),
+          mapSet(blockHash, $, allBlockHashes)
+        ),
+        pipe(
+          // we need to also patch in raw blocks[b] apparently and some state shit
+          () => {},
+          () => {
+            const docIndexes = pipe(
+              mapGet(blockHash),
+              propOr([], 'docIndexes')
+            )(allBlockHashes)
+            const matchedDocs = map(nth($, docs))(docIndexes)
+            const matchedDocFilePaths = map(propOr('', 'filePath'), matchedDocs)
+            const isIntraFileDupe = includes(doc, matchedDocs)
 
-      const docIndexes = allBlockHashes.get(blockHash).docIndexes
-      const currentDoc = doc.filePath
-      const matchedDocs = docIndexes.map(di => docs[di])
-      const matchedDocFilePaths = matchedDocs.map(di => di.filePath)
-      const isIntraFileDupe = matchedDocs.includes(doc)
+            const addDocIndex = () =>
+              docIndexes.push(fullDocHashes.get(docHash).docInd)
+            return pipe(
+              ifElse(complement(isIntraFileDupe), addDocIndex, () => {
+                const di = intraFileDupeInd(filePath, messages)
+                if (di === -1) {
+                  messages.push(
+                    makeMessage(
+                      [filePath],
+                      INTRA_FILE_DUPLICATE,
+                      blockHash,
+                      block
+                    )
+                  )
+                } else {
+                  messages[di].content.push(block)
+                }
+              }),
+              () => {
+                const dupeBlockMsgIndexes = interFileDupeMsgIndexesByHash(
+                  blockHash,
+                  messages
+                )
+                const dupeFileMsgInd = messageIndexByFiles(
+                  matchedDocFilePaths,
+                  messages
+                )
 
-      if (!isIntraFileDupe) {
-        docIndexes.push(fullDocHashes.get(docHash).docInd)
-      } else {
-        // TODO: Add count for number of times repeated in the same file
-        const di = intraFileDupeInd(currentDoc, messages)
-        if (di === -1) {
-          messages.push(
-            makeMessage([currentDoc], INTRA_FILE_DUPLICATE, blockHash, block)
-          )
-        } else {
-          messages[di].content.push(block)
-        }
-        console.log('continue')
-        return
-      }
+                const firstTimeBlockHasMatched =
+                  dupeBlockMsgIndexes.length === 0
+                const firstTimeFilesHaveMatchingBlock = dupeFileMsgInd === -1
 
-      const dupeBlockMsgIndexes = interFileDupeMsgIndexesByHash(
-        blockHash,
-        messages
-      )
-      const dupeFileMsgInd = messageIndexByFiles(matchedDocFilePaths, messages)
-
-      const firstTimeBlockHasMatched = dupeBlockMsgIndexes.length === 0
-      const firstTimeFilesHaveMatchingBlock = dupeFileMsgInd === -1
-
-      if (firstTimeBlockHasMatched) {
-        messages.push(
-          makeMessage(
-            matchedDocFilePaths.concat(currentDoc),
-            INTER_FILE_DUPLICATE,
-            blockHash,
-            block
-          )
-        )
-      } else {
-        dupeBlockMsgIndexes.forEach(i => {
-          if (!messages[i].docs.includes(currentDoc)) {
-            messages[i].docs.push(currentDoc)
+                if (firstTimeBlockHasMatched) {
+                  messages.push(
+                    makeMessage(
+                      matchedDocFilePaths.concat(filePath),
+                      INTER_FILE_DUPLICATE,
+                      blockHash,
+                      block
+                    )
+                  )
+                } else {
+                  dupeBlockMsgIndexes.forEach(i => {
+                    if (!messages[i].docs.includes(filePath)) {
+                      messages[i].docs.push(filePath)
+                    }
+                  })
+                }
+              }
+            )
           }
-        })
-      }
-    }
-  })(docs.length)
+        )
+      )(blockHash)
+    )(minifiedBlock)
+  }
+)
 
-  return combineMessages(messages)
-}
+const doMoreComplicatedStuff = curry((config, doc) => {
+  const { content, filePath } = doc
+  const { minChars, minLines } = config
+  return pipe(
+    makeBlockArray,
+    cleanBlocks,
+    when(() => sizeMeetsCriteria(block, minLines - 1, minChars), deepComparison)
+  )(blocks)
+
+  // return combineMessages(messages)
+})
 
 const compare = curry((config, docs) => {
   const messages = []
@@ -259,9 +281,9 @@ const compare = curry((config, docs) => {
           insertMatch(messages, docs, filePath, docHash)
         ),
         when(
-          isTextFile,
+          complement(isBinaryPath),
           // do more complicated stuff
-          doMoreComplicatedStuff
+          () => doMoreComplicatedStuff(config, doc)
         )
       )(fullDocHashes)
     })
