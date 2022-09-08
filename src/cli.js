@@ -87,7 +87,7 @@ const getFileContents = pipe(
       // we need to chain because glob returns a Future
       chain(fx =>
         pipe(
-          // read the files: [Future, Future, ...]
+          // read the files, creates: [Future, Future, ...]
           map(readFile),
           // mash [Future, Future, ...] => Future
           parallel(parallelFiles),

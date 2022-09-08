@@ -1,3 +1,4 @@
 {
-  "extends": "sorcerers"
+  "plugins": ["fp"],
+  "extends": ["sorcerers", "plugin:fp/recommended"]
 }

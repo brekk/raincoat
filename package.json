@@ -3,6 +3,7 @@
     "cartographic": "^0.0.2",
     "cosmiconfig": "^7.0.1",
     "envtrace": "^0.0.2",
+    "eslint-plugin-fp": "^2.3.0",
     "fast-glob": "^3.2.11",
     "fluture": "^14.0.0",
     "kleur": "^4.1.5",

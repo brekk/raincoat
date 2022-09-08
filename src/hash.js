@@ -1,26 +1,24 @@
 import crypto from 'node:crypto'
 
-import { get, of as makeMap, has as mapHas } from 'cartographic'
-import { IDENTICAL_FILE, INTER_FILE_DUPLICATE } from './constants'
 import {
-  range,
-  forEach,
-  mergeRight,
-  curry,
-  insert,
-  objOf,
   __ as $,
   addIndex,
   adjust,
   concat,
+  curry,
   curryN,
+  forEach,
   identity as I,
   ifElse,
   includes,
+  insert,
   isEmpty,
-  lt,
+  lensIndex,
+  lensProp,
   map,
+  mergeRight,
   nth,
+  objOf,
   of,
   pipe,
   propOr,
@@ -29,9 +27,20 @@ import {
   replace,
   set,
   split,
+  tap,
   unless,
+  when,
 } from 'ramda'
+import {
+  get as mapGet,
+  set as mapSet,
+  of as makeMap,
+  has as mapHas,
+} from 'cartographic'
+
+import { makeMessage } from './message'
 import { info as __info, debug as __debug } from './trace'
+import { IDENTICAL_FILE, INTER_FILE_DUPLICATE } from './constants'
 
 export const hashString = s => crypto.createHash('md5').update(s).digest('hex')
 export const cleanString = replace(/(\n|\s|\t)/g, '')
@@ -123,6 +132,113 @@ export const handleDuplicateMessages = curry(
       )
     )(dupeBlockMsgIndexes)
 )
+
+const lookupHashIndex = curry((hashes, hash) =>
+  pipe(mapGet(hash), propOr(-1, 'msgInd'))(hashes)
+)
+
+const isValidIndex = x => x > -1
+
+const insertMatch = curry((messages, docs, filePath, docHash, fullDocHashes) =>
+  pipe(
+    lookupHashIndex(fullDocHashes),
+    ifElse(
+      isValidIndex,
+      i =>
+        pipe(
+          nth($),
+          propOr([], 'docs'),
+          unless(includes(filePath), concat([filePath])),
+          set(lensIndex(i), $, messages)
+        )(messages),
+      pipe(
+        mapGet(docHash),
+        tap(set(lensProp('msgInd'), messages.length)),
+        propOr(-1, 'docInd'),
+        nth($, docs),
+        propOr('', 'filePath'),
+        x =>
+          concat(messages, [
+            makeMessage([filePath, x], IDENTICAL_FILE, docHash),
+          ])
+      )
+    )
+  )(docHash)
+)
+
+const doMoreComplicatedStuff = () => {
+  const blocks = makeBlockArray(doc.content)
+  const minifiedBlocks = minifyBlocks(blocks)
+  // We iterate over the current document's minified blocks
+  minifiedBlocks.map(block => {
+    if (!meetsSizeCriteria(block, config.minLines - 1, config.minChars)) {
+      console.log('continue')
+      return
+    }
+    // First we must check if this block is even worth checking, as we have config params which set some criteria for the content size
+    const blockHash = hashString(minifiedBlocks[b])
+    const blockMatched = allBlockHashes.has(blockHash)
+    const currentDocInd = fullDocHashes.get(docHash).docInd
+    if (!blockMatched) {
+      allBlockHashes.set(blockHash, { docIndexes: [currentDocInd] })
+    } else {
+      const block = blocks[b]
+      state.dupedLines += numLines(block)
+      state.numBlockDupes++
+
+      const docIndexes = allBlockHashes.get(blockHash).docIndexes
+      const currentDoc = doc.filePath
+      const matchedDocs = docIndexes.map(di => docs[di])
+      const matchedDocFilePaths = matchedDocs.map(di => di.filePath)
+      const isIntraFileDupe = matchedDocs.includes(doc)
+
+      if (!isIntraFileDupe) {
+        docIndexes.push(fullDocHashes.get(docHash).docInd)
+      } else {
+        // TODO: Add count for number of times repeated in the same file
+        const di = intraFileDupeInd(currentDoc, messages)
+        if (di === -1) {
+          messages.push(
+            makeMessage([currentDoc], INTRA_FILE_DUPLICATE, blockHash, block)
+          )
+        } else {
+          messages[di].content.push(block)
+        }
+        console.log('continue')
+        return
+      }
+
+      const dupeBlockMsgIndexes = interFileDupeMsgIndexesByHash(
+        blockHash,
+        messages
+      )
+      const dupeFileMsgInd = messageIndexByFiles(matchedDocFilePaths, messages)
+
+      const firstTimeBlockHasMatched = dupeBlockMsgIndexes.length === 0
+      const firstTimeFilesHaveMatchingBlock = dupeFileMsgInd === -1
+
+      if (firstTimeBlockHasMatched) {
+        messages.push(
+          makeMessage(
+            matchedDocFilePaths.concat(currentDoc),
+            INTER_FILE_DUPLICATE,
+            blockHash,
+            block
+          )
+        )
+      } else {
+        dupeBlockMsgIndexes.forEach(i => {
+          if (!messages[i].docs.includes(currentDoc)) {
+            messages[i].docs.push(currentDoc)
+          }
+        })
+      }
+    }
+  })(docs.length)
+
+  return combineMessages(messages)
+}
+
 const compare = curry((config, docs) => {
   const messages = []
   const fullDocHashes = makeMap()
@@ -131,129 +247,23 @@ const compare = curry((config, docs) => {
     dupedLines: 0,
     numFileDupes: 0,
   }
-  pipe(
-    range(0),
-    map(i => {
-      const doc = docs[i]
-      const docHash = cleanHash(doc.content)
+  return pipe(
+    addIndex(map)((doc, i) => {
+      const { content, filePath } = doc
+      const docHash = cleanHash(content)
       const fullDocMatched = mapHas(docHash, fullDocHashes)
-      if (!fullDocMatched) {
-        fullDocHashes.set(docHash, { docInd: i })
-      } else {
-        const existingMsgInd = fullDocHashes.get(docHash).msgInd
-        const previouslyMatched = existingMsgInd > -1
-        if (previouslyMatched) {
-          const msg = messages[existingMsgInd]
-          if (!msg.docs.includes(doc.filePath)) {
-            msg.docs.push(doc.filePath)
-          }
-        } else {
-          fullDocHashes.get(docHash).msgInd = messages.length
-          messages.push(
-            new Message(
-              [doc.filePath, docs[fullDocHashes.get(docHash).docInd].filePath],
-              IDENTICAL_FILE,
-              docHash
-            )
-          )
-        }
-        state.dupedLines += numLines(doc.content)
-        state.numFileDupes++
-        console.log('continue')
-        return
-      }
-      // If the file being examined is not a text file, we want to evaluate only it's full signature
-      if (!isTextFile(doc.filePath)) {
-        console.log('continue')
-        return
-      }
-      /*
-      If we don't continue here when fullDocMatched, then we will start matching the blocks of files which are pure duplicates
-      However, if we do continue, then if a different file shares a fragment with the current file, we will not realize.
-      The solution might be to not continue here, but skip blocks who have hashes that map files which are perfect duplicates,
-      so check below at match time... a duplicate message will have already been created. Related to: https://github.com/rdgd/twly/issues/4
-    */
-
-      const blocks = makeBlockArray(doc.content)
-      const minifiedBlocks = minifyBlocks(blocks)
-      // We iterate over the current document's minified blocks
-      for (let b = 0; b < minifiedBlocks.length; b++) {
-        if (
-          !meetsSizeCriteria(blocks[b], config.minLines - 1, config.minChars)
-        ) {
-          continue
-        }
-        // First we must check if this block is even worth checking, as we have config params which set some criteria for the content size
-        const blockHash = hashString(minifiedBlocks[b])
-        const blockMatched = allBlockHashes.has(blockHash)
-        const currentDocInd = fullDocHashes.get(docHash).docInd
-        if (!blockMatched) {
-          allBlockHashes.set(blockHash, { docIndexes: [currentDocInd] })
-        } else {
-          const block = blocks[b]
-          state.dupedLines += numLines(block)
-          state.numBlockDupes++
-
-          const docIndexes = allBlockHashes.get(blockHash).docIndexes
-          const currentDoc = doc.filePath
-          const matchedDocs = docIndexes.map(di => docs[di])
-          const matchedDocFilePaths = matchedDocs.map(di => di.filePath)
-          const isIntraFileDupe = matchedDocs.includes(doc)
-
-          if (!isIntraFileDupe) {
-            docIndexes.push(fullDocHashes.get(docHash).docInd)
-          } else {
-            // TODO: Add count for number of times repeated in the same file
-            const di = intraFileDupeInd(currentDoc, messages)
-            if (di === -1) {
-              messages.push(
-                new Message(
-                  [currentDoc],
-                  INTRA_FILE_DUPLICATE,
-                  blockHash,
-                  block
-                )
-              )
-            } else {
-              messages[di].content.push(block)
-            }
-            continue
-          }
-
-          const dupeBlockMsgIndexes = interFileDupeMsgIndexesByHash(
-            blockHash,
-            messages
-          )
-          const dupeFileMsgInd = messageIndexByFiles(
-            matchedDocFilePaths,
-            messages
-          )
-
-          const firstTimeBlockHasMatched = dupeBlockMsgIndexes.length === 0
-          const firstTimeFilesHaveMatchingBlock = dupeFileMsgInd === -1
-
-          if (firstTimeBlockHasMatched) {
-            messages.push(
-              new Message(
-                matchedDocFilePaths.concat(currentDoc),
-                INTER_FILE_DUPLICATE,
-                blockHash,
-                block
-              )
-            )
-          } else {
-            dupeBlockMsgIndexes.forEach(i => {
-              const alreadyReportedByCurrentFile =
-                messages[i].docs.includes(currentDoc)
-              if (!alreadyReportedByCurrentFile) {
-                messages[i].docs.push(currentDoc)
-              }
-            })
-          }
-        }
-      }
+      return pipe(
+        ifElse(
+          mapHas(docHash),
+          mapSet(docHash, { docInd: i }),
+          insertMatch(messages, docs, filePath, docHash)
+        ),
+        when(
+          isTextFile,
+          // do more complicated stuff
+          doMoreComplicatedStuff
+        )
+      )(fullDocHashes)
     })
-  )(docs.length)
-
-  return combineMessages(messages)
+  )(docs)
 })
